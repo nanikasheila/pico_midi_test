@@ -1,5 +1,9 @@
 # Raspberry Pi PicoでUSB-MIDI受信
 
+RaspberryPi PicoでUSB-MIDIを受信し、コマンドに応じて任意の関数を実行するコードです。
+
+## 使い方
+
 `MidiProcessor`を宣言して、
 
 ```c++
@@ -8,6 +12,7 @@ MidiProcessor midi_processor;
 
 `registerCallback()`を使用し、
 どのコマンドを受信したときに、どの関数を実行するかを登録する。
+対応しているコマンドはMidiCommandTypeにまとめられている。
 
 ```c++
 midi_processor.registerCallback(MidiCommandType::NoteOn,NoteOnCallback);
