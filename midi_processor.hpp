@@ -1,10 +1,9 @@
 #include <stdio.h>
-#include "pico/stdlib.h"
-#include <cstdint>
-#include <functional>
 #include <map>
+#include "pico/stdlib.h"
 
 using namespace std;
+
 //----------------------------------------------------------------
 // MIDIコマンド分類
 //----------------------------------------------------------------
@@ -17,7 +16,7 @@ enum class MidiCommandType
     System,        // 0xF0以上 (クロック, スタート/ストップ等含む)
 
     // ControlChange
-    BankSelectMSB,
+    BankSelect_MSB,
     BankSelect_LSB,
     Modulation,
     Modulation_LSB,
@@ -120,13 +119,13 @@ enum class MidiCommandType
 //       ControlChange => (ch, ccNumber, ccValue)
 //       System => 0xF8(クロック)などのステータスを data1 や data2 に入れる
 //----------------------------------------------------------------
-using MidiCallback = function<void(uint8_t, uint8_t, uint8_t)>;
+using MidiCallback = void (*)(uint8_t, uint8_t, uint8_t);
 
 class MidiProcessor
 {
 private:
     // ステータスバイトから大分類の enum を返す
-    static MidiCommandType getMidiCommandType(uint8_t status, uint8_t data1, uint8_t data2)
+    MidiCommandType getMidiCommandType(uint8_t status, uint8_t data1, uint8_t data2)
     {
         // 0xF0 以上はシステム系 (リアルタイム, SysExなど)
         if (status >= 0xF0)
@@ -148,7 +147,7 @@ private:
                 return MidiCommandType::SystemReset;
             default:
                 printf("[Callback] System msg: 0x%02X (data2=%d)\n", status, data2);
-                break;
+                return MidiCommandType::Unknown;
             }
         }
 
@@ -166,7 +165,7 @@ private:
             switch (data1)
             {
             case 0: // バンクセレクト MSB
-                return MidiCommandType::BankSelectMSB;
+                return MidiCommandType::BankSelect_MSB;
             case 1: // モジュレーション（1,01h）
                 return MidiCommandType::Modulation;
             case 2: // ブレス・コントローラー（2,02h）
@@ -398,7 +397,7 @@ public:
         if (size < 3)
             return;
 
-        // USB MIDIの場合、data[0] はケーブル番号などのため、実際のMIDIステータスは data[1] 以降
+        // データ格納
         uint8_t status = data[0];
         uint8_t d1 = data[1];
         uint8_t d2 = data[2];
@@ -410,16 +409,14 @@ public:
             cmdType = MidiCommandType::NoteOff;
         }
 
-        // 該当コールバックが登録されていれば呼ぶ
-        auto it = callbacks_.find(cmdType);
-        if (it != callbacks_.end())
+        if (callbacks_.count(cmdType))
         {
-            uint8_t channel = status & 0x0F;
-            it->second(channel, d1, d2);
+            // 登録済の場合はコールバックを実行
+            callbacks_[cmdType](status, d1, d2);
         }
         else
         {
-            // 未登録の場合はログを出すなど
+            // 未登録の場合はログを出す
             printf("Unhandled MIDI: cmdType=%d, status=0x%02X, d1=%d, d2=%d\n",
                    static_cast<int>(cmdType), status, d1, d2);
         }
