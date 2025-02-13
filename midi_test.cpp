@@ -92,7 +92,7 @@ int main(void)
     board_led_on();
     sleep_ms(500);
     board_led_off();
-    // sleep_ms(500);
+    sleep_ms(500);
 
     midi_processor.registerCallback(MidiCommandType::NoteOn,NoteOnCallback);
     midi_processor.registerCallback(MidiCommandType::NoteOff,NoteOffCallback);
